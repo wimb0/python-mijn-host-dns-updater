@@ -65,6 +65,7 @@ async def put_records(session: aiohttp.ClientSession, api_key: str, domain_name:
     records_payload = [record.__dict__ for record in records]
     payload = {"records": records_payload}
     logging.debug("Updating records...")
+    logging.debug(records_payload)
     for attempt in range(3):
         try:
             async with session.put(url, headers=headers, json=payload) as resp:
