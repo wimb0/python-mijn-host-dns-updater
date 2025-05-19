@@ -33,6 +33,7 @@ class Record:
 
 def load_config(path: str) -> Config:
     """Load and validate configuration from a JSON file."""
+    logging.debug("Loading config...")
     with open(path, 'r') as f:
         data = json.load(f)
     required_fields = ['domain_name', 'api_key', 'record_name', 'interval', 'manage_records']
