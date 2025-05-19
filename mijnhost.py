@@ -29,7 +29,7 @@ def load_config(path: str) -> Config:
     logging.debug("Loading config...")
     with open(path, 'r') as f:
         data = json.load(f)
-    required_fields = ['domain_name', 'api_key', 'record_name', 'interval', 'manage_records']
+    required_fields = ['domain_name', 'api_key', 'record_name']
     for field in required_fields:
         if field not in data:
             raise ValueError(f"Missing required config field: {field}")
