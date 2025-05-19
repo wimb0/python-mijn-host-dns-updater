@@ -16,8 +16,6 @@ class Config:
     domain_name: str
     api_key: str
     record_name: str
-    interval: int
-    manage_records: bool
 
 @dataclass
 class Record:
@@ -113,7 +111,6 @@ async def update_record_list(records: List[Record], config: Config, session: aio
     remove_a_rec = False
     remove_aaaa_rec = False
 
-    # Handle A record
     if a_idx is not None:
         a_rec = records[a_idx]
         ipv4 = await get_public_ip(session, "https://ipv4.icanhazip.com", 4)
@@ -146,7 +143,6 @@ async def update_record_list(records: List[Record], config: Config, session: aio
         else:
             logging.debug("public ipv4 not found, matching the absence of an A record.")
 
-    # Handle AAAA record
     if aaaa_idx is not None:
         aaaa_rec = records[aaaa_idx]
         ipv6 = await get_public_ip(session, "https://ipv6.icanhazip.com", 6)
@@ -179,7 +175,6 @@ async def update_record_list(records: List[Record], config: Config, session: aio
         else:
             logging.debug("public ipv6 not found, matching the absence of an AAAA record.")
 
-    # Remove records if needed
     if remove_a_rec:
         records[:] = [r for r in records if not (r.type == "A" and r.name == config.record_name)]
         logging.info("A record has been deleted.")
@@ -208,14 +203,7 @@ async def main() -> None:
         config.record_name = f"{config.record_name}.{config.domain_name}"
 
     async with aiohttp.ClientSession() as session:
-        if config.interval == 0:
-            await routine(config, session)
-        else:
-            await routine(config, session)  # Run once immediately
-            while True:
-                logging.debug(f"Sleeping for {config.interval} seconds before next update...")
-                await asyncio.sleep(config.interval)
-                await routine(config, session)
+        await routine(config, session)
 
 if __name__ == "__main__":
     try:
