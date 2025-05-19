@@ -4,7 +4,7 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import List, Optional
-import toml
+import json
 import aiohttp
 import ipaddress
 
@@ -27,9 +27,9 @@ class Record:
     ttl: int
 
 def load_config(path: str) -> Config:
-    """Load and validate configuration from a TOML file."""
+    """Load and validate configuration from a JSON file."""
     with open(path, 'r') as f:
-        data = toml.load(f)
+        data = json.load(f)
     required_fields = ['domain_name', 'api_key', 'record_name', 'interval', 'manage_records']
     for field in required_fields:
         if field not in data:
@@ -194,7 +194,7 @@ async def update_record_list(records: List[Record], config: Config, session: aio
 async def main() -> None:
     """Main entry point for the script."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('config', nargs='?', default='./config.toml')
+    parser.add_argument('config', nargs='?', default='./config.json')
     args = parser.parse_args()
 
     log_level = os.environ.get('PYTHON_LOG', 'INFO').upper()
