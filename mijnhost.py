@@ -11,11 +11,6 @@ import ipaddress
 API_BASE_URL = "https://mijn.host/api/v2"
 DEFAULT_TTL = 300
 
-logging.basicConfig(
-    level=logging.DEBUG,  # Or use logging.DEBUG for more detail
-    format='%(asctime)s [%(levelname)s] %(message)s'
-)
-
 @dataclass
 class Config:
     domain_name: str
@@ -203,8 +198,7 @@ async def main() -> None:
     parser.add_argument('config', nargs='?', default='./config.json')
     args = parser.parse_args()
 
-    log_level = os.environ.get('PYTHON_LOG', 'INFO').upper()
-    logging.basicConfig(level=log_level, format='%(asctime)s %(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
 
     config = load_config(args.config)
 
