@@ -211,9 +211,14 @@ async def main() -> None:
         if config.interval == 0:
             await routine(config, session)
         else:
+            await routine(config, session)  # Run once immediately
             while True:
+                logging.debug(f"Sleeping for {config.interval} seconds before next update...")
                 await asyncio.sleep(config.interval)
                 await routine(config, session)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("Script terminated by user.")
