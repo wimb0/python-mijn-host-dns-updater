@@ -43,6 +43,7 @@ async def get_records(session: aiohttp.ClientSession, api_key: str, domain_name:
     """Fetch DNS records from the mijn.host API."""
     url = f"{API_BASE_URL}/domains/{domain_name}/dns"
     headers = {"API-Key": api_key}
+    logging.debug("Fetching records...")
     for attempt in range(3):
         try:
             async with session.get(url, headers=headers) as resp:
@@ -62,6 +63,7 @@ async def put_records(session: aiohttp.ClientSession, api_key: str, domain_name:
     headers = {"API-Key": api_key}
     records_payload = [record.__dict__ for record in records]
     payload = {"records": records_payload}
+    logging.debug("Updating records...")
     for attempt in range(3):
         try:
             async with session.put(url, headers=headers, json=payload) as resp:
