@@ -194,7 +194,7 @@ async def main() -> None:
     if config.record_name == "@":
         config.record_name = f"{config.domain_name}."
     else:
-        config.record_name = f"{config.record_name}"
+        config.record_name = f"{config.record_name}.{config.domain_name}."
 
     async with aiohttp.ClientSession() as session:
         await routine(config, session)
