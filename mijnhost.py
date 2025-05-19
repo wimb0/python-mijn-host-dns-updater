@@ -50,6 +50,7 @@ async def get_records(session: aiohttp.ClientSession, api_key: str, domain_name:
                 resp.raise_for_status()
                 data = await resp.json()
                 records_data = data["data"]["records"]
+                logging.debug(records_data)
                 return [Record(**rec) for rec in records_data]
         except Exception as e:
             if attempt == 2:
