@@ -123,24 +123,20 @@ async def update_record_list(records: List[Record], config: Config, session: aio
                 a_rec.value = str(ipv4)
                 logging.info(f"A record IP updated to {ipv4}.")
                 action_taken = True
-        elif config.manage_records:
-            remove_a_rec = True
         else:
             logging.warning(
-                f"public ipv4 not found but an A record ({a_rec.value}) exists, consider enabling record management"
+                f"public ipv4 not found but an A record ({a_rec.value}) exists"
             )
     else:
         ipv4 = await get_public_ip(session, "https://ipv4.icanhazip.com", 4)
         if ipv4 is not None:
-            if config.manage_records:
                 ttl = records[aaaa_idx].ttl if aaaa_idx is not None else DEFAULT_TTL
                 new_record = Record(type="A", name=config.record_name, value=str(ipv4), ttl=ttl)
                 logging.info(f"A record created with IP {new_record.value} and TTL {new_record.ttl} seconds.")
                 records.append(new_record)
                 action_taken = True
-            else:
                 logging.warning(
-                    f"public ipv4 found ({ipv4}) but no A record exists, consider enabling record management"
+                    f"public ipv4 found ({ipv4}) but no A record exists"
                 )
         else:
             logging.debug("public ipv4 not found, matching the absence of an A record.")
@@ -155,24 +151,20 @@ async def update_record_list(records: List[Record], config: Config, session: aio
                 aaaa_rec.value = str(ipv6)
                 logging.info(f"AAAA record IP updated to {ipv6}.")
                 action_taken = True
-        elif config.manage_records:
-            remove_aaaa_rec = True
         else:
             logging.warning(
-                f"public ipv6 not found but an AAAA record ({aaaa_rec.value}) exists, consider enabling record management"
+                f"public ipv6 not found but an AAAA record ({aaaa_rec.value}) exists"
             )
     else:
         ipv6 = await get_public_ip(session, "https://ipv6.icanhazip.com", 6)
         if ipv6 is not None:
-            if config.manage_records:
                 ttl = records[a_idx].ttl if a_idx is not None else DEFAULT_TTL
                 new_record = Record(type="AAAA", name=config.record_name, value=str(ipv6), ttl=ttl)
                 logging.info(f"AAAA record created with IP {new_record.value} and TTL {new_record.ttl} seconds.")
                 records.append(new_record)
                 action_taken = True
-            else:
                 logging.warning(
-                    f"public ipv6 found ({ipv6}) but no AAAA record exists, consider enabling record management"
+                    f"public ipv6 found ({ipv6}) but no AAAA record exists"
                 )
         else:
             logging.debug("public ipv6 not found, matching the absence of an AAAA record.")
