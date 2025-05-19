@@ -1,5 +1,4 @@
-## Home Assistant Mijn.host DNS updater integration
-
+## Python Mijn.host DNS updater
 # Config.json
 
 - domain_name : your domain name, i.e. example.com
