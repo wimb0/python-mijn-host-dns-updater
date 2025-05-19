@@ -36,9 +36,7 @@ def load_config(path: str) -> Config:
     return Config(
         domain_name=data['domain_name'],
         api_key=data['api_key'],
-        record_name=data['record_name'],
-        interval=data['interval'],
-        manage_records=data['manage_records'],
+        record_name=data['record_name']
     )
 
 async def get_records(session: aiohttp.ClientSession, api_key: str, domain_name: str) -> List[Record]:
