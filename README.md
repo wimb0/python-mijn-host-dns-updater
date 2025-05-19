@@ -8,4 +8,4 @@ Simple Mijn.host DNS updater in Python.
 - record_name : DNS record to update. @ is the base domain.
 
 # Credits
-Idea based on Rust implementation from  https://github.com/wimb0/mijn-host-ddns
+Idea based on Rust implementation from https://github.com/ldobbelsteen/mijn-host-ddns
