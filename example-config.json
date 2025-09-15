@@ -1,5 +1,7 @@
 {
-    "domain_name": "example.com",
-    "api_key": "your-api-key",
-    "record_name": "@"
+  "domain_name": "example.com",
+  "api_key": "your-key",
+  "record_name": "@",
+  "interval": 1458,
+  "manage_records": false
 }
