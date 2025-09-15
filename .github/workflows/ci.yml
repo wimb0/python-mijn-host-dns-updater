@@ -4,7 +4,13 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'mijn_host_ddns_updater.py'
+      - 'Dockerfile'
   pull_request:
+    paths:
+      - 'mijn_host_ddns_updater.py'
+      - 'Dockerfile'
 
 jobs:
   build-and-push-docker-image:
