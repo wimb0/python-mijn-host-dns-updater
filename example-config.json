@@ -1,5 +1,9 @@
 {
   "domain_name": "example.com",
   "api_key": "your-key",
-  "record_name": "@"
+  "record_names": [
+    "@", 
+    "*"
+  ],
+  "default_ttl": 300
 }
