@@ -59,4 +59,4 @@ docker run --rm \
 ```
  
 ## Credits
-This project was inspired by the original Rust implementation by ldobbelsteen.
+This project was inspired by the original Rust implementation by [ldobbelsteen](https://github.com/ldobbelsteen/mijn-host-ddns).
