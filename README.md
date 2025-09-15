@@ -72,7 +72,6 @@ services:
     volumes:
       - ./config.json:/app/config.json:ro
     command: --config config.json
-    restart: on-failure
 ```
 
 ### With docker run
