@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 # Constants
 API_BASE_URL = "https://mijn.host/api/v2"
-USER_AGENT = "Python-DDNS-Client/1.7"
+USER_AGENT = "Python-DDNS-Client/1.8"
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -69,9 +69,12 @@ def put_records(api_key: str, domain_name: str, records: List[Dict]) -> bool:
         logger.error(f"Error updating DNS records: {e}")
         return False
 
-def update_ddns(config: Dict):
+def update_ddns(config: Dict, dry_run: bool = False):
     """The main routine for updating DDNS for multiple records."""
-    logger.info("Starting update routine...")
+    if dry_run:
+        logger.info("Starting update routine in DRY-RUN mode. No changes will be made.")
+    else:
+        logger.info("Starting update routine...")
 
     api_key = config["api_key"]
     domain_name = config["domain_name"]
@@ -82,7 +85,7 @@ def update_ddns(config: Dict):
         return
 
     records_to_update = list(all_records)
-    action_taken = False
+    changes_found = []
 
     public_ipv4 = get_public_ip(4)
     public_ipv6 = get_public_ip(6)
@@ -92,45 +95,45 @@ def update_ddns(config: Dict):
     if not public_ipv6:
         logger.info("No public IPv6 address found, skipping AAAA records.")
 
-    # Function to normalize a record name for comparison
     def normalize_record_name(name: str) -> str:
         return name.rstrip('.')
 
-    # Loop through each record name from the config
     for record_name in record_names_to_update:
-        # Determine the full FQDN (Fully Qualified Domain Name)
         target_name = (f"{record_name}.{domain_name}" if record_name != "@" else domain_name).rstrip('.')
         logger.info(f"--- Processing record: {target_name} ---")
 
-        # --- Process IPv4 (A record) ---
         if public_ipv4:
             a_record = next((r for r in records_to_update if r["type"] == "A" and normalize_record_name(r["name"]) == target_name), None)
             if a_record:
                 if a_record["value"] != public_ipv4:
-                    logger.info(f"A record IP ({a_record['value']}) does not match public IP ({public_ipv4}). Updating...")
+                    change_info = f"A record for '{target_name}' from '{a_record['value']}' to '{public_ipv4}'"
+                    changes_found.append(change_info)
                     a_record["value"] = public_ipv4
-                    action_taken = True
                 else:
                     logger.debug(f"A record for '{target_name}' is already up-to-date.")
             else:
                 logger.warning(f"No A record found with name '{target_name}'.")
 
-        # --- Process IPv6 (AAAA record) ---
         if public_ipv6:
             aaaa_record = next((r for r in records_to_update if r["type"] == "AAAA" and normalize_record_name(r["name"]) == target_name), None)
             if aaaa_record:
                 if aaaa_record["value"] != public_ipv6:
-                    logger.info(f"AAAA record IP ({aaaa_record['value']}) does not match public IP ({public_ipv6}). Updating...")
+                    change_info = f"AAAA record for '{target_name}' from '{aaaa_record['value']}' to '{public_ipv6}'"
+                    changes_found.append(change_info)
                     aaaa_record["value"] = public_ipv6
-                    action_taken = True
                 else:
                     logger.debug(f"AAAA record for '{target_name}' is already up-to-date.")
             else:
                 logger.warning(f"No AAAA record found with name '{target_name}'.")
 
-    # --- Update the records if anything changed ---
-    if action_taken:
-        put_records(api_key, domain_name, records_to_update)
+    if changes_found:
+        if dry_run:
+            logger.info("DRY-RUN: The following changes would be made:")
+            for change in changes_found:
+                print(f"  - Update {change}")
+        else:
+            logger.info("Changes detected. Pushing updates...")
+            put_records(api_key, domain_name, records_to_update)
     else:
         logger.info("No action required. All checked records are already up-to-date.")
 
@@ -138,7 +141,6 @@ def main():
     """Script entrypoint: parses arguments and starts the update."""
     parser = argparse.ArgumentParser(description="One-shot mijn.host DDNS updater in Python.")
     
-    # Simplified argument handling to only use an optional flag
     parser.add_argument(
         "-c", "--config",
         default="./config.json",
@@ -148,6 +150,11 @@ def main():
         "-d", "--debug",
         action="store_true",
         help="Enable detailed debug logging."
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be changed without executing the update."
     )
     args = parser.parse_args()
     
@@ -179,7 +186,7 @@ def main():
         logger.error("'record_names' in the configuration must be a list (array).")
         sys.exit(1)
 
-    update_ddns(config)
+    update_ddns(config, dry_run=args.dry_run)
 
 if __name__ == "__main__":
     main()
