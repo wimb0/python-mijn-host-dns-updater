@@ -1,7 +1,6 @@
 # Python Mijn.host DDNS Updater
 
 A simple, dependency-free Python script to keep your DNS records at [Mijn.host](https://mijn.host) updated with your dynamic public IP address.
-The script is available as a multi-platform Docker container from `ghcr.io`.
 
 [![CI for Python DDNS Updater](https://github.com/wimb0/python-mijn-host-dns-updater/actions/workflows/ci.yml/badge.svg)](https://github.com/wimb0/python-mijn-host-dns-updater/actions/workflows/ci.yml)
 
@@ -10,10 +9,8 @@ The script is available as a multi-platform Docker container from `ghcr.io`.
 -   **IPv4 & IPv6 Support**: Updates both A and AAAA records.
 -   **Multi-Record**: Updates multiple hostnames (e.g., `@`, `*`) in a single run.
 -   **Create Records**: Can automatically create records if they don't exist (optional).
--   **Docker Ready**: Multi-platform image (`linux/amd64`, `linux/arm64`, `linux/armv7`) available.
--   **Safe Testing**: A `--dry-run` flag shows what would change without executing.
+-   **Dry-run**: A `--dry-run` flag shows what would change without executing.
 -   **Debug Mode**: A `--debug` flag for verbose logging.
--   **interval**: 1800
 
 ## Configuration
 
