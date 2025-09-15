@@ -3,6 +3,9 @@ name: CI - Build and Push Multi-Arch Docker Image
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - 'v*'
+
 
 jobs:
   build-and-push:
