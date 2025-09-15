@@ -8,8 +8,9 @@ import urllib.error
 from typing import Dict, List, Optional
 
 # Constants
+SCRIPT_VERSION = "1.1"
 API_BASE_URL = "https://mijn.host/api/v2"
-USER_AGENT = "Python-DDNS-Client/2.3" # Version updated
+USER_AGENT = f"Python-DDNS-Client/v{SCRIPT_VERSION}"
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -156,16 +157,19 @@ def update_ddns(config: Dict, dry_run: bool = False):
 
 def main():
     """Script entrypoint: parses arguments and starts the update."""
-    parser = argparse.ArgumentParser(description="Mijn.host DDNS updater with built-in scheduler.")
+    parser = argparse.ArgumentParser(description=f"Mijn.host DDNS updater v{SCRIPT_VERSION}")
     
     parser.add_argument("-c", "--config", default="./config.json", help="Path to the JSON configuration file (default: ./config.json).")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable detailed debug logging.")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be changed without executing the update.")
+    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {SCRIPT_VERSION}")
     args = parser.parse_args()
     
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=log_level, format="%(asctime)s - %(levelname)s - %(message)s", stream=sys.stdout)
 
+    logger.info(f"Starting Mijn.host DDNS Updater v{SCRIPT_VERSION}")
+    
     config_path = args.config
     logger.debug(f"Using configuration file: {config_path}")
 
