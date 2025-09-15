@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 # Constants
 API_BASE_URL = "https://mijn.host/api/v2"
-USER_AGENT = "Python-DDNS-Client/1.5"
+USER_AGENT = "Python-DDNS-Client/1.6"
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -136,12 +136,22 @@ def update_ddns(config: Dict):
 
 def main():
     """Script entrypoint: parses arguments and starts the update."""
-    parser = argparse.ArgumentParser(description="One-shot mijn.host DDNS updater in Python.")
+    parser = argparse.ArgumentParser(
+        description="One-shot mijn.host DDNS updater in Python.",
+        epilog="The configuration file can be specified as a positional argument or with the --config flag."
+    )
+    # Changed argument handling to support both positional and optional flags
     parser.add_argument(
-        "config",
+        "config_pos",
         nargs="?",
-        default="./config.json",
-        help="Path to the JSON configuration file.",
+        default=None,
+        help="Path to the JSON configuration file (positional).",
+    )
+    parser.add_argument(
+        "-c", "--config",
+        dest="config_opt",
+        default=None,
+        help="Path to the JSON configuration file (optional flag)."
     )
     parser.add_argument(
         "-d", "--debug",
@@ -157,14 +167,18 @@ def main():
         stream=sys.stdout,
     )
 
+    # Determine which config path to use, with priority for the optional flag
+    config_path = args.config_opt or args.config_pos or "./config.json"
+    logger.debug(f"Using configuration file: {config_path}")
+
     try:
-        with open(args.config, "r") as f:
+        with open(config_path, "r") as f:
             config = json.load(f)
     except FileNotFoundError:
-        logger.error(f"Configuration file not found at: {args.config}")
+        logger.error(f"Configuration file not found at: {config_path}")
         sys.exit(1)
     except json.JSONDecodeError:
-        logger.error(f"Error parsing the JSON configuration file: {args.config}")
+        logger.error(f"Error parsing the JSON configuration file: {config_path}")
         sys.exit(1)
     
     required_keys = ["api_key", "domain_name", "record_names", "default_ttl"]
