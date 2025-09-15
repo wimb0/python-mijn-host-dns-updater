@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 # Constants
 API_BASE_URL = "https://mijn.host/api/v2"
-USER_AGENT = "Python-DDNS-Client/1.6"
+USER_AGENT = "Python-DDNS-Client/1.7"
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -136,22 +136,13 @@ def update_ddns(config: Dict):
 
 def main():
     """Script entrypoint: parses arguments and starts the update."""
-    parser = argparse.ArgumentParser(
-        description="One-shot mijn.host DDNS updater in Python.",
-        epilog="The configuration file can be specified as a positional argument or with the --config flag."
-    )
-    # Changed argument handling to support both positional and optional flags
-    parser.add_argument(
-        "config_pos",
-        nargs="?",
-        default=None,
-        help="Path to the JSON configuration file (positional).",
-    )
+    parser = argparse.ArgumentParser(description="One-shot mijn.host DDNS updater in Python.")
+    
+    # Simplified argument handling to only use an optional flag
     parser.add_argument(
         "-c", "--config",
-        dest="config_opt",
-        default=None,
-        help="Path to the JSON configuration file (optional flag)."
+        default="./config.json",
+        help="Path to the JSON configuration file (default: ./config.json)."
     )
     parser.add_argument(
         "-d", "--debug",
@@ -167,8 +158,7 @@ def main():
         stream=sys.stdout,
     )
 
-    # Determine which config path to use, with priority for the optional flag
-    config_path = args.config_opt or args.config_pos or "./config.json"
+    config_path = args.config
     logger.debug(f"Using configuration file: {config_path}")
 
     try:
