@@ -1,206 +1,198 @@
 import argparse
-import asyncio
-import logging
-import os
-from dataclasses import dataclass
-from typing import List, Optional
 import json
-import aiohttp
-import ipaddress
+import logging
+import sys
+import time
+import urllib.request
+import urllib.error
+from typing import Dict, List, Optional
 
+# Constanten
 API_BASE_URL = "https://mijn.host/api/v2"
-DEFAULT_TTL = 300
+DEFAULT_TTL = 3600
+USER_AGENT = "Python-DDNS-Client/1.0"
 
-@dataclass
-class Config:
-    domain_name: str
-    api_key: str
-    record_name: str
+# Logging configureren
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,
+)
 
-@dataclass
-class Record:
-    type: str
-    name: str
-    value: str
-    ttl: int
 
-def load_config(path: str) -> Config:
-    """Load and validate configuration from a JSON file."""
-    logging.debug("Loading config...")
-    with open(path, 'r') as f:
-        data = json.load(f)
-    required_fields = ['domain_name', 'api_key', 'record_name']
-    for field in required_fields:
-        if field not in data:
-            raise ValueError(f"Missing required config field: {field}")
-    return Config(
-        domain_name=data['domain_name'],
-        api_key=data['api_key'],
-        record_name=data['record_name']
+def make_request(
+    url: str,
+    method: str = "GET",
+    headers: Optional[Dict] = None,
+    data: Optional[bytes] = None,
+) -> Optional[Dict]:
+    """Een generieke functie om HTTP-verzoeken te doen met urllib."""
+    headers = headers or {}
+    headers["User-Agent"] = USER_AGENT
+    
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status >= 400:
+                logging.error(f"Fout bij verzoek naar {url}: {response.status} {response.reason}")
+                return None
+            
+            # Voor PUT requests is er geen body in de response
+            if method.upper() == 'PUT':
+                return {"success": True}
+
+            response_body = response.read().decode("utf-8")
+            return json.loads(response_body)
+
+    except urllib.error.HTTPError as e:
+        logging.error(f"HTTP Fout bij verzoek naar {url}: {e.code} {e.reason}")
+        return None
+    except urllib.error.URLError as e:
+        logging.error(f"URL Fout bij verzoek naar {url}: {e.reason}")
+        return None
+    except json.JSONDecodeError:
+        logging.error(f"Fout bij het parsen van JSON-respons van {url}")
+        return None
+
+
+def get_public_ip(version: int) -> Optional[str]:
+    """Haalt het openbare IPv4- of IPv6-adres op."""
+    url = f"https://ipv{version}.icanhazip.com"
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return response.read().decode("utf-8").strip()
+    except urllib.error.URLError as e:
+        logging.warning(f"Kon geen openbaar IPv{version}-adres ophalen: {e.reason}")
+        return None
+
+
+def get_records(api_key: str, domain_name: str) -> Optional[List[Dict]]:
+    """Haalt de DNS-records voor een domein op."""
+    url = f"{API_BASE_URL}/domains/{domain_name}/dns"
+    headers = {"API-Key": api_key, "Content-Type": "application/json"}
+    response = make_request(url, method="GET", headers=headers)
+    return response["data"]["records"] if response and "data" in response else None
+
+
+def put_records(api_key: str, domain_name: str, records: List[Dict]) -> bool:
+    """Werkt de DNS-records voor een domein bij."""
+    url = f"{API_BASE_URL}/domains/{domain_name}/dns"
+    headers = {"API-Key": api_key, "Content-Type": "application/json"}
+    data = json.dumps({"records": records}).encode("utf-8")
+    response = make_request(url, method="PUT", headers=headers, data=data)
+    if response:
+        logging.info("DNS-records succesvol bijgewerkt.")
+        return True
+    logging.error("Fout bij het bijwerken van DNS-records.")
+    return False
+
+
+def update_routine(config: Dict):
+    """De hoofdroutine voor het bijwerken van de DDNS."""
+    logging.info("Update-routine wordt uitgevoerd...")
+
+    domain_name = config["domain_name"]
+    api_key = config["api_key"]
+    record_name = (
+        f"{config['record_name']}.{domain_name}"
+        if config["record_name"] != "@"
+        else domain_name
     )
+    manage_records = config.get("manage_records", False)
 
-async def get_records(session: aiohttp.ClientSession, api_key: str, domain_name: str) -> List[Record]:
-    """Fetch DNS records from the mijn.host API."""
-    url = f"{API_BASE_URL}/domains/{domain_name}/dns"
-    headers = {"API-Key": api_key}
-    logging.debug("Fetching records...")
-    for attempt in range(3):
-        try:
-            async with session.get(url, headers=headers) as resp:
-                resp.raise_for_status()
-                data = await resp.json()
-                records_data = data["data"]["records"]
-                logging.debug(records_data)
-                return [Record(**rec) for rec in records_data]
-        except Exception as e:
-            if attempt == 2:
-                raise
-            logging.warning(f"get_records attempt {attempt+1} failed: {e}")
-    return []
+    existing_records = get_records(api_key, domain_name)
+    if existing_records is None:
+        return
 
-async def put_records(session: aiohttp.ClientSession, api_key: str, domain_name: str, records: List[Record]) -> None:
-    """Update DNS records on the mijn.host API."""
-    url = f"{API_BASE_URL}/domains/{domain_name}/dns"
-    headers = {"API-Key": api_key}
-    records_payload = [record.__dict__ for record in records]
-    payload = {"records": records_payload}
-    logging.debug("Updating records...")
-    logging.debug(records_payload)
-    for attempt in range(3):
-        try:
-            async with session.put(url, headers=headers, json=payload) as resp:
-                resp.raise_for_status()
-                return
-        except Exception as e:
-            if attempt == 2:
-                raise
-            logging.warning(f"put_records attempt {attempt+1} failed: {e}")
-
-async def get_public_ip(session: aiohttp.ClientSession, url: str, version: int, retries: int = 3) -> Optional[ipaddress._BaseAddress]:
-    """Fetch the public IP (v4 or v6) from a specified service."""
-    for attempt in range(retries):
-        try:
-            async with session.get(url) as resp:
-                text = await resp.text()
-                if version == 4:
-                    return ipaddress.IPv4Address(text.strip())
-                else:
-                    return ipaddress.IPv6Address(text.strip())
-        except aiohttp.ClientConnectorError:
-            return None
-        except Exception as e:
-            if attempt == retries - 1:
-                raise
-            await asyncio.sleep(1)
-    return None
-
-async def routine(config: Config, session: aiohttp.ClientSession) -> None:
-    logging.info("Running update routine...")
-    existing_records = await get_records(session, config.api_key, config.domain_name)
-    action_taken = await update_record_list(existing_records, config, session)
-    if action_taken:
-        logging.debug("Updating records via the API...")
-        await put_records(session, config.api_key, config.domain_name, existing_records)
-    else:
-        logging.info("No action required.")
-
-async def update_record_list(records: List[Record], config: Config, session: aiohttp.ClientSession) -> bool:
-    """Update the DNS record list based on current public IPs and config."""
-    a_idx = next((i for i, r in enumerate(records) if r.type == "A" and r.name == config.record_name), None)
-    aaaa_idx = next((i for i, r in enumerate(records) if r.type == "AAAA" and r.name == config.record_name), None)
-
+    records = list(existing_records)
     action_taken = False
-    remove_a_rec = False
-    remove_aaaa_rec = False
 
-    if a_idx is not None:
-        a_rec = records[a_idx]
-        ipv4 = await get_public_ip(session, "https://ipv4.icanhazip.com", 4)
-        if ipv4 is not None:
-            if str(ipaddress.IPv4Address(a_rec.value)) == str(ipv4):
-                logging.debug(f"public ipv4 found ({ipv4}) matches the A record.")
-            else:
-                a_rec.value = str(ipv4)
-                logging.info(f"A record IP updated to {ipv4}.")
-                action_taken = True
-        else:
-            logging.warning(
-                f"public ipv4 not found but an A record ({a_rec.value}) exists"
-            )
-    else:
-        ipv4 = await get_public_ip(session, "https://ipv4.icanhazip.com", 4)
-        if ipv4 is not None:
-                ttl = records[aaaa_idx].ttl if aaaa_idx is not None else DEFAULT_TTL
-                new_record = Record(type="A", name=config.record_name, value=str(ipv4), ttl=ttl)
-                logging.info(f"A record created with IP {new_record.value} and TTL {new_record.ttl} seconds.")
-                records.append(new_record)
-                action_taken = True
-                logging.warning(
-                    f"public ipv4 found ({ipv4}) but no A record exists"
-                )
-        else:
-            logging.debug("public ipv4 not found, matching the absence of an A record.")
+    public_ipv4 = get_public_ip(4)
+    public_ipv6 = get_public_ip(6)
 
-    if aaaa_idx is not None:
-        aaaa_rec = records[aaaa_idx]
-        ipv6 = await get_public_ip(session, "https://ipv6.icanhazip.com", 6)
-        if ipv6 is not None:
-            if str(ipaddress.IPv6Address(aaaa_rec.value)) == str(ipv6):
-                logging.debug(f"public ipv6 found ({ipv6}) matches the AAAA record.")
-            else:
-                aaaa_rec.value = str(ipv6)
-                logging.info(f"AAAA record IP updated to {ipv6}.")
+    # Verwerk A-record (IPv4)
+    a_record = next((r for r in records if r["type"] == "A" and r["name"] == record_name), None)
+    if a_record:
+        if public_ipv4:
+            if a_record["value"] != public_ipv4:
+                a_record["value"] = public_ipv4
+                logging.info(f"A-record IP bijgewerkt naar {public_ipv4}...")
                 action_taken = True
-        else:
-            logging.warning(
-                f"public ipv6 not found but an AAAA record ({aaaa_rec.value}) exists"
-            )
-    else:
-        ipv6 = await get_public_ip(session, "https://ipv6.icanhazip.com", 6)
-        if ipv6 is not None:
-                ttl = records[a_idx].ttl if a_idx is not None else DEFAULT_TTL
-                new_record = Record(type="AAAA", name=config.record_name, value=str(ipv6), ttl=ttl)
-                logging.info(f"AAAA record created with IP {new_record.value} and TTL {new_record.ttl} seconds.")
-                records.append(new_record)
-                action_taken = True
-                logging.warning(
-                    f"public ipv6 found ({ipv6}) but no AAAA record exists"
-                )
-        else:
-            logging.debug("public ipv6 not found, matching the absence of an AAAA record.")
-
-    if remove_a_rec:
-        records[:] = [r for r in records if not (r.type == "A" and r.name == config.record_name)]
-        logging.info("A record has been deleted.")
+        elif manage_records:
+            records.remove(a_record)
+            logging.info("A-record verwijderd omdat er geen openbaar IPv4-adres is gevonden.")
+            action_taken = True
+    elif public_ipv4 and manage_records:
+        new_record = {
+            "type": "A",
+            "name": record_name,
+            "value": public_ipv4,
+            "ttl": DEFAULT_TTL,
+        }
+        records.append(new_record)
+        logging.info(f"A-record aangemaakt met IP {public_ipv4}...")
         action_taken = True
 
-    if remove_aaaa_rec:
-        records[:] = [r for r in records if not (r.type == "AAAA" and r.name == config.record_name)]
-        logging.info("AAAA record has been deleted.")
+    # Verwerk AAAA-record (IPv6)
+    aaaa_record = next((r for r in records if r["type"] == "AAAA" and r["name"] == record_name), None)
+    if aaaa_record:
+        if public_ipv6:
+            if aaaa_record["value"] != public_ipv6:
+                aaaa_record["value"] = public_ipv6
+                logging.info(f"AAAA-record IP bijgewerkt naar {public_ipv6}...")
+                action_taken = True
+        elif manage_records:
+            records.remove(aaaa_record)
+            logging.info("AAAA-record verwijderd omdat er geen openbaar IPv6-adres is gevonden.")
+            action_taken = True
+    elif public_ipv6 and manage_records:
+        new_record = {
+            "type": "AAAA",
+            "name": record_name,
+            "value": public_ipv6,
+            "ttl": DEFAULT_TTL,
+        }
+        records.append(new_record)
+        logging.info(f"AAAA-record aangemaakt met IP {public_ipv6}...")
         action_taken = True
 
-    return action_taken
+    if action_taken:
+        put_records(api_key, domain_name, records)
+    else:
+        logging.info("Geen actie vereist.")
 
-async def main() -> None:
-    """Main entry point for the script."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('config', nargs='?', default='./config.json')
+
+def main():
+    parser = argparse.ArgumentParser(description="mijn.host DDNS updater in Python (zonder externe dependencies).")
+    parser.add_argument(
+        "config",
+        nargs="?",
+        default="./config.json",
+        help="Pad naar het JSON-configuratiebestand.",
+    )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
+    try:
+        with open(args.config, "r") as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        logging.error(f"Configuratiebestand niet gevonden op: {args.config}")
+        sys.exit(1)
+    except json.JSONDecodeError:
+        logging.error(f"Fout bij het parsen van het JSON-configuratiebestand: {args.config}")
+        sys.exit(1)
 
-    config = load_config(args.config)
-
-    if config.record_name == "@":
-        config.record_name = f"{config.domain_name}."
+    interval = config.get("interval", 0)
+    if interval > 0:
+        while True:
+            update_routine(config)
+            logging.info(f"Wachten voor {interval} seconden...")
+            time.sleep(interval)
     else:
-        config.record_name = f"{config.record_name}.{config.domain_name}."
+        update_routine(config)
 
-    async with aiohttp.ClientSession() as session:
-        await routine(config, session)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logging.info("Script terminated by user.")
+    main()
