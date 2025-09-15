@@ -152,4 +152,30 @@ def main():
     
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(
-        level=log
+        level=log_level,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        stream=sys.stdout,
+    )
+
+    try:
+        with open(args.config, "r") as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        logger.error(f"Configuration file not found at: {args.config}")
+        sys.exit(1)
+    except json.JSONDecodeError:
+        logger.error(f"Error parsing the JSON configuration file: {args.config}")
+        sys.exit(1)
+    
+    required_keys = ["api_key", "domain_name", "record_names", "default_ttl"]
+    if not all(key in config for key in required_keys):
+        logger.error(f"Configuration file is missing one or more required keys: {required_keys}")
+        sys.exit(1)
+    if not isinstance(config["record_names"], list):
+        logger.error("'record_names' in the configuration must be a list (array).")
+        sys.exit(1)
+
+    update_ddns(config)
+
+if __name__ == "__main__":
+    main()
