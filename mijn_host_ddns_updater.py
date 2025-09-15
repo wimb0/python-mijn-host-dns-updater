@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 # Constants
 API_BASE_URL = "https://mijn.host/api/v2"
-USER_AGENT = "Python-DDNS-Client/1.8"
+USER_AGENT = "Python-DDNS-Client/1.9"
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -79,6 +79,7 @@ def update_ddns(config: Dict, dry_run: bool = False):
     api_key = config["api_key"]
     domain_name = config["domain_name"]
     record_names_to_update = config["record_names"]
+    create_records = config.get("create_records_if_missing", False)
 
     all_records = get_records(api_key, domain_name)
     if all_records is None:
@@ -102,35 +103,53 @@ def update_ddns(config: Dict, dry_run: bool = False):
         target_name = (f"{record_name}.{domain_name}" if record_name != "@" else domain_name).rstrip('.')
         logger.info(f"--- Processing record: {target_name} ---")
 
+        # Process IPv4 (A record)
         if public_ipv4:
             a_record = next((r for r in records_to_update if r["type"] == "A" and normalize_record_name(r["name"]) == target_name), None)
             if a_record:
                 if a_record["value"] != public_ipv4:
-                    change_info = f"A record for '{target_name}' from '{a_record['value']}' to '{public_ipv4}'"
+                    change_info = f"Update A record for '{target_name}' from '{a_record['value']}' to '{public_ipv4}'"
                     changes_found.append(change_info)
                     a_record["value"] = public_ipv4
                 else:
                     logger.debug(f"A record for '{target_name}' is already up-to-date.")
-            else:
-                logger.warning(f"No A record found with name '{target_name}'.")
+            elif create_records:
+                new_record = {
+                    "type": "A",
+                    "name": target_name,
+                    "value": public_ipv4,
+                    "ttl": config["default_ttl"]
+                }
+                records_to_update.append(new_record)
+                change_info = f"Create A record for '{target_name}' with IP '{public_ipv4}'"
+                changes_found.append(change_info)
 
+        # Process IPv6 (AAAA record)
         if public_ipv6:
             aaaa_record = next((r for r in records_to_update if r["type"] == "AAAA" and normalize_record_name(r["name"]) == target_name), None)
             if aaaa_record:
                 if aaaa_record["value"] != public_ipv6:
-                    change_info = f"AAAA record for '{target_name}' from '{aaaa_record['value']}' to '{public_ipv6}'"
+                    change_info = f"Update AAAA record for '{target_name}' from '{aaaa_record['value']}' to '{public_ipv6}'"
                     changes_found.append(change_info)
                     aaaa_record["value"] = public_ipv6
                 else:
                     logger.debug(f"AAAA record for '{target_name}' is already up-to-date.")
-            else:
-                logger.warning(f"No AAAA record found with name '{target_name}'.")
+            elif create_records:
+                new_record = {
+                    "type": "AAAA",
+                    "name": target_name,
+                    "value": public_ipv6,
+                    "ttl": config["default_ttl"]
+                }
+                records_to_update.append(new_record)
+                change_info = f"Create AAAA record for '{target_name}' with IP '{public_ipv6}'"
+                changes_found.append(change_info)
 
     if changes_found:
         if dry_run:
             logger.info("DRY-RUN: The following changes would be made:")
             for change in changes_found:
-                print(f"  - Update {change}")
+                print(f"  - {change}")
         else:
             logger.info("Changes detected. Pushing updates...")
             put_records(api_key, domain_name, records_to_update)
