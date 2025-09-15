@@ -13,6 +13,7 @@ The script is available as a multi-platform Docker container from `ghcr.io`.
 -   **Docker Ready**: Multi-platform image (`linux/amd64`, `linux/arm64`) available.
 -   **Safe Testing**: A `--dry-run` flag shows what would change without executing.
 -   **Debug Mode**: A `--debug` flag for verbose logging.
+-   "interval": 1800
 
 ## Configuration
 
@@ -29,15 +30,17 @@ The script uses a `config.json` file for configuration.
     "*"
   ],
   "default_ttl": 300,
-  "create_records_if_missing": false
+  "create_records_if_missing": false,
+  "interval": 1800
 }
 ```
-- domain_name: Your base domain name.
-- api_key: Your Mijn.host API key.
-- record_names: A list of DNS records to update ("@" for the root domain).
-- default_ttl: The TTL to use when creating new records.
-- create_records_if_missing: (Optional, default: false) Set to true to allow the script to create new DNS records.
-
+- `domain_name`: Your base domain name.
+- `api_key`: Your Mijn.host API key.
+- `record_names`: A list of DNS records to update ("@" for the root domain).
+- `default_ttl`: The TTL to use when creating new records.
+- `create_records_if_missing`: (Optional, default: false) Set to true to allow the script to create new DNS records.
+- `interval`: (Optional, default: 0) The number of seconds to wait between updates. If set to 0, the script will run once and exit.
+  
 ## Usage
 ### Local Script Execution
 ```
