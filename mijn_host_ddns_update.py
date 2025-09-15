@@ -8,9 +8,9 @@ from typing import Dict, List, Optional
 
 # Constanten
 API_BASE_URL = "https://mijn.host/api/v2"
-USER_AGENT = "Python-DDNS-Client/1.3"
+USER_AGENT = "Python-DDNS-Client/1.4"
 
-# Maak een logger aan in plaats van de root logger te configureren
+# Maak een logger aan
 logger = logging.getLogger(__name__)
 
 def _perform_request(url: str, method: str = "GET", headers: Optional[Dict] = None, data: Optional[bytes] = None) -> bytes:
@@ -48,7 +48,6 @@ def get_records(api_key: str, domain_name: str) -> Optional[List[Dict]]:
         data = json.loads(response_bytes)
         records = data.get("data", {}).get("records")
         if records is not None:
-             # Gebruik json.dumps voor een mooie, ingesprongen weergave van de records in de debug log
             logger.debug(f"Huidige DNS-records voor {domain_name}:\n{json.dumps(records, indent=2)}")
         return records
     except (urllib.error.URLError, urllib.error.HTTPError) as e:
@@ -76,8 +75,9 @@ def update_ddns(config: Dict):
 
     api_key = config["api_key"]
     domain_name = config["domain_name"]
-    record_name = (f"{config['record_name']}.{domain_name}" if config["record_name"] != "@" else domain_name)
-    logger.debug(f"Doelrecord naam: {record_name}")
+    # Normaliseer de doelnaam direct (verwijder eventuele punt aan het einde)
+    record_name_target = (f"{config['record_name']}.{domain_name}" if config["record_name"] != "@" else domain_name).rstrip('.')
+    logger.debug(f"Doelrecord naam: {record_name_target}")
 
     all_records = get_records(api_key, domain_name)
     if all_records is None:
@@ -86,10 +86,14 @@ def update_ddns(config: Dict):
     records_to_update = list(all_records)
     action_taken = False
 
+    # Functie om de naam van een record te normaliseren voor vergelijking
+    def normalize_record_name(name: str) -> str:
+        return name.rstrip('.')
+
     # --- Stap 1: Verwerk IPv4 (A record) ---
     public_ipv4 = get_public_ip(4)
     if public_ipv4:
-        a_record = next((r for r in records_to_update if r["type"] == "A" and r["name"] == record_name), None)
+        a_record = next((r for r in records_to_update if r["type"] == "A" and normalize_record_name(r["name"]) == record_name_target), None)
         if a_record:
             logger.debug(f"Gevonden A-record: {a_record}")
             if a_record["value"] != public_ipv4:
@@ -99,14 +103,14 @@ def update_ddns(config: Dict):
             else:
                 logger.debug("A-record IP is al up-to-date.")
         else:
-            logger.warning(f"Geen A-record gevonden met de naam '{record_name}'.")
+            logger.warning(f"Geen A-record gevonden met de naam '{record_name_target}'.")
     else:
         logger.info("Geen openbaar IPv4-adres gevonden, A-record wordt overgeslagen.")
 
     # --- Stap 2: Verwerk IPv6 (AAAA record) ---
     public_ipv6 = get_public_ip(6)
     if public_ipv6:
-        aaaa_record = next((r for r in records_to_update if r["type"] == "AAAA" and r["name"] == record_name), None)
+        aaaa_record = next((r for r in records_to_update if r["type"] == "AAAA" and normalize_record_name(r["name"]) == record_name_target), None)
         if aaaa_record:
             logger.debug(f"Gevonden AAAA-record: {aaaa_record}")
             if aaaa_record["value"] != public_ipv6:
@@ -116,7 +120,7 @@ def update_ddns(config: Dict):
             else:
                 logger.debug("AAAA-record IP is al up-to-date.")
         else:
-            logger.warning(f"Geen AAAA-record gevonden met de naam '{record_name}'.")
+            logger.warning(f"Geen AAAA-record gevonden met de naam '{record_name_target}'.")
     else:
         logger.info("Geen openbaar IPv6-adres gevonden, AAAA-record wordt overgeslagen.")
 
@@ -141,8 +145,7 @@ def main():
         help="Schakel gedetailleerde debug logging in."
     )
     args = parser.parse_args()
-
-    # Stel het logging niveau in op basis van de --debug vlag
+    
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(
         level=log_level,
