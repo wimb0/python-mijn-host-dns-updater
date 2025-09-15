@@ -49,12 +49,34 @@ python mijn_host_ddns_updater.py --config /path/to/config.json
 
 # Test with a dry run
 python mijn_host_ddns_updater.py --config config.json --dry-run
-```
-### Docker Container
-The container is available at `ghcr.io/wimb0/python-mijn-host-dns-updater`.
 
 ```
-# Run the updater via Docker
+### Docker Usage
+
+The container is available at `ghcr.io/wimb0/python-mijn-host-dns-updater`.
+
+#### With Docker Compose (Recommended)
+
+Using `docker-compose` is the easiest way to manage the container as a service.
+
+1.  Create a `docker-compose.yml` file with the content below.
+2.  Make sure your `config.json` is in the same directory.
+3.  Run `docker-compose up -d` to start the service in the background.
+
+**`docker-compose.yml` file:**
+```yaml
+services:
+  mijn-host-ddns-updater:
+    image: ghcr.io/wimb0/python-mijn-host-dns-updater:latest
+    restart: unless-stopped
+    volumes:
+      - ./config.json:/app/config.json:ro
+    command: --config config.json
+```
+
+### With docker run
+You can also use the docker run command directly.
+```
 docker run --rm \
   --name mijn-host-ddns \
   --volume ./config.json:/app/config.json:ro \
