@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 # Constanten
 API_BASE_URL = "https://mijn.host/api/v2"
-USER_AGENT = "Python-DDNS-Client/1.1" # Versie verhoogd
+USER_AGENT = "Python-DDNS-Client/1.2"
 
 # Logging eenmalig instellen
 logging.basicConfig(
@@ -82,23 +82,29 @@ def update_ddns(config: Dict):
     records_to_update = list(all_records)
     action_taken = False
 
-    ip_map = {
-        "A": get_public_ip(4),
-        "AAAA": get_public_ip(6),
-    }
-
-    for record_type, public_ip in ip_map.items():
-        if not public_ip:
-            continue
-        
-        # Zoek de relevante record in een kopie van de lijst
-        record_to_check = next((r for r in records_to_update if r["type"] == record_type and r["name"] == record_name), None)
-
-        if record_to_check and record_to_check["value"] != public_ip:
-            logging.info(f"{record_type}-record IP bijgewerkt naar {public_ip}...")
-            record_to_check["value"] = public_ip
+    # --- Stap 1: Verwerk IPv4 (A record) ---
+    public_ipv4 = get_public_ip(4)
+    if public_ipv4:
+        a_record = next((r for r in records_to_update if r["type"] == "A" and r["name"] == record_name), None)
+        if a_record and a_record["value"] != public_ipv4:
+            logging.info(f"A-record IP bijgewerkt naar {public_ipv4}...")
+            a_record["value"] = public_ipv4
             action_taken = True
+    else:
+        logging.info("Geen openbaar IPv4-adres gevonden, A-record wordt overgeslagen.")
 
+    # --- Stap 2: Verwerk IPv6 (AAAA record) ---
+    public_ipv6 = get_public_ip(6)
+    if public_ipv6:
+        aaaa_record = next((r for r in records_to_update if r["type"] == "AAAA" and r["name"] == record_name), None)
+        if aaaa_record and aaaa_record["value"] != public_ipv6:
+            logging.info(f"AAAA-record IP bijgewerkt naar {public_ipv6}...")
+            aaaa_record["value"] = public_ipv6
+            action_taken = True
+    else:
+        logging.info("Geen openbaar IPv6-adres gevonden, AAAA-record wordt overgeslagen.")
+
+    # --- Stap 3: Werk de records bij als er iets is veranderd ---
     if action_taken:
         put_records(api_key, domain_name, records_to_update)
     else:
@@ -125,7 +131,6 @@ def main():
         logging.error(f"Fout bij het parsen van het JSON-configuratiebestand: {args.config}")
         sys.exit(1)
     
-    # Valideer of de benodigde sleutels aanwezig zijn
     required_keys = ["api_key", "domain_name", "record_name"]
     if not all(key in config for key in required_keys):
         logging.error(f"Configuratiebestand mist een of meer verplichte sleutels: {required_keys}")
