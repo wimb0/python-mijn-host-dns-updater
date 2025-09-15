@@ -2,9 +2,10 @@
   "domain_name": "example.com",
   "api_key": "your-key",
   "record_names": [
-    "@", 
+    "@",
     "*"
   ],
   "default_ttl": 300,
-  "create_records_if_missing": false
+  "create_records_if_missing": false,
+  "interval": 1800
 }
