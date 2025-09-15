@@ -10,7 +10,7 @@ The script is available as a multi-platform Docker container from `ghcr.io`.
 -   **IPv4 & IPv6 Support**: Updates both A and AAAA records.
 -   **Multi-Record**: Updates multiple hostnames (e.g., `@`, `*`) in a single run.
 -   **Create Records**: Can automatically create records if they don't exist (optional).
--   **Docker Ready**: Multi-platform image (`linux/amd64`, `linux/arm64`) available.
+-   **Docker Ready**: Multi-platform image (`linux/amd64`, `linux/arm64`, `linux/armv7`) available.
 -   **Safe Testing**: A `--dry-run` flag shows what would change without executing.
 -   **Debug Mode**: A `--debug` flag for verbose logging.
 -   **interval**: 1800
