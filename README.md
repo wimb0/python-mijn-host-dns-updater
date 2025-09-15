@@ -13,7 +13,7 @@ The script is available as a multi-platform Docker container from `ghcr.io`.
 -   **Docker Ready**: Multi-platform image (`linux/amd64`, `linux/arm64`) available.
 -   **Safe Testing**: A `--dry-run` flag shows what would change without executing.
 -   **Debug Mode**: A `--debug` flag for verbose logging.
--   "interval": 1800
+-   **interval**: 1800
 
 ## Configuration
 
