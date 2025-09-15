@@ -2,13 +2,14 @@ import argparse
 import json
 import logging
 import sys
+import time
 import urllib.request
 import urllib.error
 from typing import Dict, List, Optional
 
 # Constants
 API_BASE_URL = "https://mijn.host/api/v2"
-USER_AGENT = "Python-DDNS-Client/1.9"
+USER_AGENT = "Python-DDNS-Client/2.0"
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -114,12 +115,7 @@ def update_ddns(config: Dict, dry_run: bool = False):
                 else:
                     logger.debug(f"A record for '{target_name}' is already up-to-date.")
             elif create_records:
-                new_record = {
-                    "type": "A",
-                    "name": target_name,
-                    "value": public_ipv4,
-                    "ttl": config["default_ttl"]
-                }
+                new_record = { "type": "A", "name": target_name, "value": public_ipv4, "ttl": config["default_ttl"] }
                 records_to_update.append(new_record)
                 change_info = f"Create A record for '{target_name}' with IP '{public_ipv4}'"
                 changes_found.append(change_info)
@@ -135,12 +131,7 @@ def update_ddns(config: Dict, dry_run: bool = False):
                 else:
                     logger.debug(f"AAAA record for '{target_name}' is already up-to-date.")
             elif create_records:
-                new_record = {
-                    "type": "AAAA",
-                    "name": target_name,
-                    "value": public_ipv6,
-                    "ttl": config["default_ttl"]
-                }
+                new_record = { "type": "AAAA", "name": target_name, "value": public_ipv6, "ttl": config["default_ttl"] }
                 records_to_update.append(new_record)
                 change_info = f"Create AAAA record for '{target_name}' with IP '{public_ipv6}'"
                 changes_found.append(change_info)
@@ -158,31 +149,15 @@ def update_ddns(config: Dict, dry_run: bool = False):
 
 def main():
     """Script entrypoint: parses arguments and starts the update."""
-    parser = argparse.ArgumentParser(description="One-shot mijn.host DDNS updater in Python.")
+    parser = argparse.ArgumentParser(description="Mijn.host DDNS updater with built-in scheduler.")
     
-    parser.add_argument(
-        "-c", "--config",
-        default="./config.json",
-        help="Path to the JSON configuration file (default: ./config.json)."
-    )
-    parser.add_argument(
-        "-d", "--debug",
-        action="store_true",
-        help="Enable detailed debug logging."
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be changed without executing the update."
-    )
+    parser.add_argument("-c", "--config", default="./config.json", help="Path to the JSON configuration file (default: ./config.json).")
+    parser.add_argument("-d", "--debug", action="store_true", help="Enable detailed debug logging.")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be changed without executing the update.")
     args = parser.parse_args()
     
     log_level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        stream=sys.stdout,
-    )
+    logging.basicConfig(level=log_level, format="%(asctime)s - %(levelname)s - %(message)s", stream=sys.stdout)
 
     config_path = args.config
     logger.debug(f"Using configuration file: {config_path}")
@@ -201,11 +176,21 @@ def main():
     if not all(key in config for key in required_keys):
         logger.error(f"Configuration file is missing one or more required keys: {required_keys}")
         sys.exit(1)
-    if not isinstance(config["record_names"], list):
-        logger.error("'record_names' in the configuration must be a list (array).")
-        sys.exit(1)
 
-    update_ddns(config, dry_run=args.dry_run)
+    interval = config.get("interval", 0)
+
+    while True:
+        try:
+            update_ddns(config, dry_run=args.dry_run)
+        except Exception as e:
+            logger.error(f"An unexpected error occurred during the update routine: {e}")
+
+        if interval <= 0:
+            logger.info("Interval is 0, script will now exit.")
+            break
+        
+        logger.info(f"Waiting for {interval} seconds before next run...")
+        time.sleep(interval)
 
 if __name__ == "__main__":
     main()
