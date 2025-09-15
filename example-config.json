@@ -6,5 +6,5 @@
     "*"
   ],
   "default_ttl": 300,
-  "create_records_if_missing": true
+  "create_records_if_missing": false
 }
