@@ -8,9 +8,8 @@ import urllib.error
 from typing import Dict, List, Optional
 
 # Constants
-SCRIPT_VERSION = "1.1"
 API_BASE_URL = "https://mijn.host/api/v2"
-USER_AGENT = f"Python-DDNS-Client/v{SCRIPT_VERSION}"
+USER_AGENT = "Python-DDNS-Client"
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -71,10 +70,10 @@ def put_records(api_key: str, domain_name: str, records: List[Dict]) -> bool:
         logger.error(f"Error updating DNS records: {e}")
         return False
 
-def update_ddns(config: Dict, dry_run: bool = False):
+def update_ddns(config: Dict, preview: bool = False):
     """The main routine for updating DDNS for multiple records."""
-    if dry_run:
-        logger.info("Starting update routine in DRY-RUN mode. No changes will be made.")
+    if preview:
+        logger.info("Starting update routine in PREVIEW mode. No changes will be made.")
     else:
         logger.info("Starting update routine...")
 
@@ -145,8 +144,8 @@ def update_ddns(config: Dict, dry_run: bool = False):
                 records_to_update.append(new_record)
 
     if changes_found:
-        if dry_run:
-            logger.info("DRY-RUN SUMMARY: The following changes would be made:")
+        if preview:
+            logger.info("PREVIEW: The following changes would be made:")
             for change in changes_found:
                 print(f"  - {change}")
         else:
@@ -157,18 +156,17 @@ def update_ddns(config: Dict, dry_run: bool = False):
 
 def main():
     """Script entrypoint: parses arguments and starts the update."""
-    parser = argparse.ArgumentParser(description=f"Mijn.host DDNS updater v{SCRIPT_VERSION}")
+    parser = argparse.ArgumentParser(description="Mijn.host DDNS updater")
     
     parser.add_argument("-c", "--config", default="./config.json", help="Path to the JSON configuration file (default: ./config.json).")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable detailed debug logging.")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be changed without executing the update.")
-    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {SCRIPT_VERSION}")
+    parser.add_argument("-p", "--preview", action="store_true", help="Show what would be changed without executing the update.")
     args = parser.parse_args()
     
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=log_level, format="%(asctime)s - %(levelname)s - %(message)s", stream=sys.stdout)
 
-    logger.info(f"Starting Mijn.host DDNS Updater v{SCRIPT_VERSION}")
+    logger.info("Starting Mijn.host DDNS Updater")
     
     config_path = args.config
     logger.debug(f"Using configuration file: {config_path}")
@@ -196,7 +194,7 @@ def main():
 
     while True:
         try:
-            update_ddns(config, dry_run=args.dry_run)
+            update_ddns(config, preview=args.preview)
         except Exception as e:
             logger.error(f"An unexpected error occurred during the update routine: {e}")
 
