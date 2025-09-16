@@ -9,7 +9,7 @@ A simple, dependency-free Python script to keep your DNS records at [Mijn.host](
 -   **IPv4 & IPv6 Support**: Updates both A and AAAA records.
 -   **Multi-Record**: Updates multiple hostnames (e.g., `@`, `*`) in a single run.
 -   **Create Records**: Can automatically create records if they don't exist (optional).
--   **Dry-run**: A `--dry-run` flag shows what would change without executing.
+-   **Preview Mode**: A `--preview` flag shows what would change without executing.
 -   **Debug Mode**: A `--debug` flag for verbose logging.
 
 ## Configuration
@@ -45,7 +45,7 @@ The script uses a `config.json` file for configuration.
 python mijn_host_ddns_updater.py --config /path/to/config.json
 
 # Test with a dry run
-python mijn_host_ddns_updater.py --config config.json --dry-run
+python mijn_host_ddns_updater.py --config config.json --preview
 
 ```
 ### Docker Usage
